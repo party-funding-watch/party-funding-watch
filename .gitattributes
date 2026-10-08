@@ -1,0 +1,5 @@
+# Treat source PDFs as binary: git never converts line endings in them and
+# never tries to diff or merge them as text. Without this, a contributor whose
+# git converts line endings (common on Windows) could alter PDF bytes, which
+# would break their SHA-256 fingerprints in data/SOURCES.csv.
+*.pdf binary

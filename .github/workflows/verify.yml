@@ -1,0 +1,51 @@
+# Verify archived sources
+# -----------------------
+# What this does: on every push to any branch, on every pull request, and
+# whenever started by hand from the Actions tab, GitHub starts a fresh Linux
+# machine, downloads a copy of the repository, and runs
+#     python scripts/hash_sources.py --verify
+# That script recomputes the SHA-256 fingerprint of every PDF in
+# data/raw_pdfs/ and compares it with data/SOURCES.csv.
+#
+# Why: principle 5 says --verify must PASS before anything is published.
+# Running it automatically means a changed, missing, unhashed, or unlisted
+# PDF is caught the moment it is pushed, not later by a reader. The script
+# exits with code 1 on FAIL, which GitHub shows as a red cross on the commit.
+#
+# Where to see results: the "Actions" tab of the repository on GitHub, or the
+# green tick / red cross next to each commit.
+
+name: Verify sources
+
+on:
+  push:              # every push, every branch
+  pull_request:      # a contributor's proposed change, checked before you merge it
+  workflow_dispatch: # adds a "Run workflow" button in the Actions tab for manual runs
+
+# Least privilege: this job only needs to read the repository, never write.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: hash_sources.py --verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10   # hashing a few MB takes seconds; this stops a hung run
+
+    steps:
+      # Step 1: download the pushed commit, including the PDFs, onto the runner.
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Step 2: install the same Python version used locally (3.12).
+      # No pip install is needed: hash_sources.py uses only Python's built-in
+      # modules (hashlib, csv, argparse), so this check cannot be broken by a
+      # third-party package problem.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Step 3: the actual check. Its printed VERDICT line appears in the log.
+      - name: Verify every PDF against data/SOURCES.csv
+        run: python scripts/hash_sources.py --verify
